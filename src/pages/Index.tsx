@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
-import { MapView } from '@/components/map/MapView';
-import { MapboxTokenInput } from '@/components/map/MapboxTokenInput';
+import { MapView, BasemapType } from '@/components/map/MapView';
 import { Sidebar } from '@/components/sidebar/Sidebar';
 import { MobileToggle } from '@/components/sidebar/MobileToggle';
 import { useGeoData } from '@/hooks/useGeoData';
@@ -11,7 +10,7 @@ const Index = () => {
   const { data, features, loading, error, lastModified, findBestFeature } = useGeoData();
   const [selectedFeature, setSelectedFeature] = useState<LandFeature | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [mapboxToken, setMapboxToken] = useState<string>('');
+  const [basemap, setBasemap] = useState<BasemapType>('streets');
 
   const handleFeatureSelect = useCallback((feature: LandFeature) => {
     // CRITICAL BUG FIX: Always get the best feature with complete data
@@ -24,8 +23,8 @@ const Index = () => {
     setSelectedFeature(null);
   }, []);
 
-  const handleTokenSubmit = useCallback((token: string) => {
-    setMapboxToken(token);
+  const handleBasemapChange = useCallback((newBasemap: BasemapType) => {
+    setBasemap(newBasemap);
   }, []);
 
   if (loading) {
@@ -65,20 +64,18 @@ const Index = () => {
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         findBestFeature={findBestFeature}
+        basemap={basemap}
+        onBasemapChange={handleBasemapChange}
       />
 
       {/* Map */}
       <main className="flex-1 relative">
-        {!mapboxToken ? (
-          <MapboxTokenInput onTokenSubmit={handleTokenSubmit} />
-        ) : (
-          <MapView
-            data={data}
-            selectedFeature={selectedFeature}
-            onFeatureClick={handleFeatureSelect}
-            mapboxToken={mapboxToken}
-          />
-        )}
+        <MapView
+          data={data}
+          selectedFeature={selectedFeature}
+          onFeatureClick={handleFeatureSelect}
+          basemap={basemap}
+        />
       </main>
 
       {/* Mobile Toggle */}

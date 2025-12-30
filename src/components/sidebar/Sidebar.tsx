@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import { LandFeature } from '@/types/geojson';
 import { LandListItem } from './LandListItem';
 import { LandDetail } from './LandDetail';
-import { Search, ChevronLeft, Map, List, Settings } from 'lucide-react';
+import { BasemapType } from '@/components/map/MapView';
+import { Search, Map, List, Settings, Satellite, MapPin, Mountain, Moon } from 'lucide-react';
 
 interface SidebarProps {
   features: LandFeature[];
@@ -13,9 +14,26 @@ interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
   findBestFeature: (idTanah: string | null, kodeBd: string | null) => LandFeature | null;
+  basemap: BasemapType;
+  onBasemapChange: (basemap: BasemapType) => void;
 }
 
 type TabType = 'map' | 'list' | 'tools';
+
+interface BasemapOption {
+  id: BasemapType;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  description: string;
+}
+
+const BASEMAP_OPTIONS: BasemapOption[] = [
+  { id: 'streets', label: 'Streets', icon: MapPin, description: 'Peta jalan ESRI' },
+  { id: 'satellite', label: 'Satelit', icon: Satellite, description: 'Citra satelit ESRI' },
+  { id: 'topo', label: 'Topografi', icon: Mountain, description: 'Peta topografi ESRI' },
+  { id: 'osm', label: 'OpenStreetMap', icon: Map, description: 'Peta OpenStreetMap' },
+  { id: 'dark', label: 'Dark', icon: Moon, description: 'Peta gelap ESRI' },
+];
 
 export function Sidebar({ 
   features, 
@@ -25,7 +43,9 @@ export function Sidebar({
   lastModified,
   isOpen,
   onClose,
-  findBestFeature
+  findBestFeature,
+  basemap,
+  onBasemapChange
 }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<TabType>('list');
   const [searchQuery, setSearchQuery] = useState('');
@@ -119,12 +139,49 @@ export function Sidebar({
         <div className="flex-1 overflow-hidden">
           {/* Map Settings Tab */}
           {activeTab === 'map' && (
-            <div className="p-4 space-y-4 animate-fade-in">
+            <div className="p-4 space-y-4 animate-fade-in overflow-y-auto h-full">
               <div className="bg-card rounded-lg border border-border p-4">
-                <h3 className="font-semibold text-sm text-primary mb-3">Pengaturan Peta</h3>
-                <p className="text-muted-foreground text-sm">
-                  Gunakan kontrol di peta untuk navigasi dan zoom.
-                </p>
+                <h3 className="font-semibold text-sm text-primary mb-4">Pilih Basemap</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {BASEMAP_OPTIONS.map(option => {
+                    const Icon = option.icon;
+                    const isActive = basemap === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        onClick={() => onBasemapChange(option.id)}
+                        className={`
+                          flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all
+                          ${isActive 
+                            ? 'border-primary bg-primary/10 text-primary' 
+                            : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                          }
+                        `}
+                      >
+                        <Icon className={`w-6 h-6 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                        <span className="text-xs font-medium">{option.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="bg-card rounded-lg border border-border p-4">
+                <h3 className="font-semibold text-sm text-primary mb-3">Petunjuk Navigasi</h3>
+                <ul className="text-muted-foreground text-sm space-y-2">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">•</span>
+                    <span>Gunakan scroll untuk zoom in/out</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">•</span>
+                    <span>Klik dan drag untuk menggeser peta</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">•</span>
+                    <span>Klik bidang tanah untuk melihat detail</span>
+                  </li>
+                </ul>
               </div>
             </div>
           )}

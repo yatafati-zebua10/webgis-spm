@@ -1,158 +1,172 @@
-import { useEffect, useRef, useState } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
+import { useEffect, useRef } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { LandFeature, GeoJSONData } from '@/types/geojson';
 import * as turf from '@turf/turf';
+
+// Fix for default marker icons in Leaflet
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
+
+export type BasemapType = 'streets' | 'satellite' | 'topo' | 'osm' | 'dark';
 
 interface MapViewProps {
   data: GeoJSONData | null;
   selectedFeature: LandFeature | null;
   onFeatureClick: (feature: LandFeature) => void;
-  mapboxToken: string;
+  basemap: BasemapType;
 }
 
-export function MapView({ data, selectedFeature, onFeatureClick, mapboxToken }: MapViewProps) {
+const BASEMAP_URLS: Record<BasemapType, { url: string; attribution: string }> = {
+  streets: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri'
+  },
+  satellite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri'
+  },
+  topo: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri'
+  },
+  osm: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  },
+  dark: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri'
+  }
+};
+
+export function MapView({ data, selectedFeature, onFeatureClick, basemap }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
-  const userMarker = useRef<mapboxgl.Marker | null>(null);
+  const map = useRef<L.Map | null>(null);
+  const geoJsonLayer = useRef<L.GeoJSON | null>(null);
+  const highlightLayer = useRef<L.GeoJSON | null>(null);
+  const basemapLayer = useRef<L.TileLayer | null>(null);
+  const userMarker = useRef<L.Marker | null>(null);
 
+  // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || !mapboxToken) return;
+    if (!mapContainer.current || map.current) return;
 
-    mapboxgl.accessToken = mapboxToken;
-
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11',
-      center: [112.67, -7.34],
+    map.current = L.map(mapContainer.current, {
+      center: [-7.34, 112.67],
       zoom: 13,
-      attributionControl: false,
+      zoomControl: false,
     });
 
-    map.current.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
-    map.current.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-right');
+    // Add zoom control to bottom right
+    L.control.zoom({ position: 'bottomright' }).addTo(map.current);
+
+    // Add initial basemap
+    const { url, attribution } = BASEMAP_URLS[basemap];
+    basemapLayer.current = L.tileLayer(url, { attribution }).addTo(map.current);
 
     return () => {
       map.current?.remove();
+      map.current = null;
     };
-  }, [mapboxToken]);
+  }, []);
+
+  // Update basemap when changed
+  useEffect(() => {
+    if (!map.current) return;
+
+    const { url, attribution } = BASEMAP_URLS[basemap];
+
+    if (basemapLayer.current) {
+      map.current.removeLayer(basemapLayer.current);
+    }
+
+    basemapLayer.current = L.tileLayer(url, { attribution }).addTo(map.current);
+    basemapLayer.current.bringToBack();
+  }, [basemap]);
 
   // Add GeoJSON layer when data is available
   useEffect(() => {
     if (!map.current || !data) return;
 
-    const addLayers = () => {
-      // Remove existing layers if they exist
-      if (map.current?.getLayer('land-fill')) map.current.removeLayer('land-fill');
-      if (map.current?.getLayer('land-outline')) map.current.removeLayer('land-outline');
-      if (map.current?.getLayer('land-labels')) map.current.removeLayer('land-labels');
-      if (map.current?.getLayer('land-highlight')) map.current.removeLayer('land-highlight');
-      if (map.current?.getSource('land-data')) map.current.removeSource('land-data');
-
-      map.current?.addSource('land-data', {
-        type: 'geojson',
-        data: data as GeoJSON.FeatureCollection,
-      });
-
-      // Fill layer
-      map.current?.addLayer({
-        id: 'land-fill',
-        type: 'fill',
-        source: 'land-data',
-        paint: {
-          'fill-color': '#1e4a8c',
-          'fill-opacity': 0.35,
-        },
-      });
-
-      // Outline layer
-      map.current?.addLayer({
-        id: 'land-outline',
-        type: 'line',
-        source: 'land-data',
-        paint: {
-          'line-color': '#0f2d5a',
-          'line-width': 1.5,
-        },
-      });
-
-      // Labels layer
-      map.current?.addLayer({
-        id: 'land-labels',
-        type: 'symbol',
-        source: 'land-data',
-        layout: {
-          'text-field': ['get', 'IDTANAH'],
-          'text-size': 10,
-          'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-          'text-anchor': 'center',
-        },
-        paint: {
-          'text-color': '#1e3a5f',
-          'text-halo-color': '#ffffff',
-          'text-halo-width': 1.5,
-        },
-        minzoom: 14,
-      });
-
-      // Highlight layer (initially empty filter)
-      map.current?.addLayer({
-        id: 'land-highlight',
-        type: 'fill',
-        source: 'land-data',
-        paint: {
-          'fill-color': '#0ea5e9',
-          'fill-opacity': 0.6,
-        },
-        filter: ['==', 'KODEBD', ''],
-      });
-
-      // Click handler
-      map.current?.on('click', 'land-fill', (e) => {
-        if (e.features && e.features.length > 0) {
-          const props = e.features[0].properties;
-          // Find the complete feature from original data
-          const feature = data.features.find(f => 
-            f.properties.KODEBD === props?.KODEBD || 
-            f.properties.IDTANAH === props?.IDTANAH
-          );
-          if (feature) {
-            onFeatureClick(feature);
-          }
-        }
-      });
-
-      // Cursor change on hover
-      map.current?.on('mouseenter', 'land-fill', () => {
-        if (map.current) map.current.getCanvas().style.cursor = 'pointer';
-      });
-
-      map.current?.on('mouseleave', 'land-fill', () => {
-        if (map.current) map.current.getCanvas().style.cursor = '';
-      });
-    };
-
-    if (map.current.isStyleLoaded()) {
-      addLayers();
-    } else {
-      map.current.on('load', addLayers);
+    // Remove existing layer
+    if (geoJsonLayer.current) {
+      map.current.removeLayer(geoJsonLayer.current);
     }
+
+    geoJsonLayer.current = L.geoJSON(data as GeoJSON.FeatureCollection, {
+      style: {
+        color: '#0f2d5a',
+        weight: 1.5,
+        fillColor: '#1e4a8c',
+        fillOpacity: 0.35,
+      },
+      onEachFeature: (feature, layer) => {
+        layer.on('click', () => {
+          const landFeature = data.features.find(f =>
+            f.properties.KODEBD === feature.properties?.KODEBD ||
+            f.properties.IDTANAH === feature.properties?.IDTANAH
+          );
+          if (landFeature) {
+            onFeatureClick(landFeature);
+          }
+        });
+
+        layer.on('mouseover', () => {
+          (layer as L.Path).setStyle({ fillOpacity: 0.5 });
+        });
+
+        layer.on('mouseout', () => {
+          (layer as L.Path).setStyle({ fillOpacity: 0.35 });
+        });
+
+        // Add tooltip with ID
+        if (feature.properties?.IDTANAH) {
+          layer.bindTooltip(feature.properties.IDTANAH, {
+            permanent: false,
+            direction: 'center',
+            className: 'land-tooltip'
+          });
+        }
+      }
+    }).addTo(map.current);
+
   }, [data, onFeatureClick]);
 
   // Highlight selected feature
   useEffect(() => {
-    if (!map.current || !selectedFeature) return;
+    if (!map.current || !data) return;
 
-    map.current.setFilter('land-highlight', ['==', 'KODEBD', selectedFeature.properties.KODEBD || '']);
+    // Remove existing highlight
+    if (highlightLayer.current) {
+      map.current.removeLayer(highlightLayer.current);
+      highlightLayer.current = null;
+    }
+
+    if (!selectedFeature) return;
+
+    // Add highlight layer
+    highlightLayer.current = L.geoJSON(selectedFeature as GeoJSON.Feature, {
+      style: {
+        color: '#0ea5e9',
+        weight: 3,
+        fillColor: '#0ea5e9',
+        fillOpacity: 0.5,
+      }
+    }).addTo(map.current);
 
     // Fly to feature
     const bbox = turf.bbox(selectedFeature);
-    map.current.fitBounds(
-      [[bbox[0], bbox[1]], [bbox[2], bbox[3]]],
-      { padding: 100, maxZoom: 17, duration: 1000 }
-    );
-  }, [selectedFeature]);
+    map.current.fitBounds([
+      [bbox[1], bbox[0]],
+      [bbox[3], bbox[2]]
+    ], { padding: [50, 50], maxZoom: 17 });
+
+  }, [selectedFeature, data]);
 
   // Locate user function
   const locateUser = () => {
@@ -160,20 +174,22 @@ export function MapView({ data, selectedFeature, onFeatureClick, mapboxToken }: 
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const coords: [number, number] = [position.coords.longitude, position.coords.latitude];
-        setUserLocation(coords);
+        const coords: L.LatLngTuple = [position.coords.latitude, position.coords.longitude];
 
         if (userMarker.current) {
-          userMarker.current.setLngLat(coords);
+          userMarker.current.setLatLng(coords);
         } else {
-          userMarker.current = new mapboxgl.Marker({
-            color: '#0ea5e9',
-          })
-            .setLngLat(coords)
-            .addTo(map.current!);
+          userMarker.current = L.marker(coords, {
+            icon: L.divIcon({
+              className: 'user-location-marker',
+              html: '<div class="user-marker-dot"></div>',
+              iconSize: [20, 20],
+              iconAnchor: [10, 10]
+            })
+          }).addTo(map.current!);
         }
 
-        map.current?.flyTo({ center: coords, zoom: 15, duration: 1500 });
+        map.current?.flyTo(coords, 15);
       },
       (error) => {
         console.error('Geolocation error:', error);
@@ -184,9 +200,9 @@ export function MapView({ data, selectedFeature, onFeatureClick, mapboxToken }: 
   return (
     <div className="relative h-full w-full">
       <div ref={mapContainer} className="h-full w-full" />
-      
+
       {/* Map Controls */}
-      <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
+      <div className="absolute top-4 right-4 flex flex-col gap-2 z-[1000]">
         <button
           onClick={locateUser}
           className="control-button"

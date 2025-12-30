@@ -267,19 +267,54 @@
   }
 }
 
-/* Mapbox overrides */
-.mapboxgl-ctrl-attrib {
+/* Leaflet customizations */
+.leaflet-container {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.land-tooltip {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: hsl(var(--primary));
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.land-tooltip::before {
+  display: none;
+}
+
+.user-location-marker {
+  background: transparent;
+}
+
+.user-marker-dot {
+  width: 16px;
+  height: 16px;
+  background: hsl(var(--primary));
+  border: 3px solid white;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.leaflet-control-zoom {
+  border: none !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+.leaflet-control-zoom a {
+  background: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: hsl(var(--muted)) !important;
+}
+
+.leaflet-control-attribution {
   @apply text-xs bg-background/80 rounded-tl-md;
-}
-
-.mapboxgl-ctrl-group {
-  @apply rounded-lg shadow-card overflow-hidden border-0;
-}
-
-.mapboxgl-ctrl-group button {
-  @apply border-0 border-b border-border last:border-0;
-}
-
-.mapboxgl-popup-content {
-  @apply rounded-lg shadow-elevated p-0 overflow-hidden;
 }
