@@ -318,3 +318,41 @@
 .leaflet-control-attribution {
   @apply text-xs bg-background/80 rounded-tl-md;
 }
+
+/* Land Labels */
+.land-label {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  text-align: center;
+}
+
+.land-label span {
+  background: hsl(var(--card) / 0.9);
+  color: hsl(var(--primary));
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid hsl(var(--border));
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Measurement styles */
+.leaflet-interactive.measure-line {
+  cursor: crosshair;
+}
+
+/* Mobile bottom sheet styles */
+@media (max-width: 1023px) {
+  .leaflet-control-zoom {
+    bottom: calc(70vh + 20px) !important;
+  }
+}
+
+/* Floating sidebar effect */
+@media (min-width: 1024px) {
+  aside {
+    box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.15);
+  }
+}
