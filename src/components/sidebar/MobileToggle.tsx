@@ -1,4 +1,4 @@
-import { ChevronUp, X } from 'lucide-react';
+import { ChevronUp } from 'lucide-react';
 
 interface MobileToggleProps {
   isOpen: boolean;
@@ -10,7 +10,7 @@ export function MobileToggle({ isOpen, onClick }: MobileToggleProps) {
     <button
       onClick={onClick}
       className={`
-        fixed z-30
+        fixed z-[1200]
         lg:hidden
         
         /* Position at bottom center when closed, hidden when open */

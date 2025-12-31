@@ -1,13 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Palette, Square, Droplets } from 'lucide-react';
-
-interface PolygonStyle {
-  fillColor: string;
-  outlineColor: string;
-  fillOpacity: number;
-}
-
-export type { PolygonStyle };
+import type { PolygonStyle } from '@/types/map-ui';
 
 interface PolygonStyleControlProps {
   style: PolygonStyle;

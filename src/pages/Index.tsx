@@ -1,11 +1,10 @@
 import { useState, useCallback } from 'react';
-import { MapView, BasemapType } from '@/components/map/MapView';
+import { MapView } from '@/components/map/MapView';
 import { Sidebar } from '@/components/sidebar/Sidebar';
 import { MobileToggle } from '@/components/sidebar/MobileToggle';
 import { useGeoData } from '@/hooks/useGeoData';
 import { LandFeature } from '@/types/geojson';
-import { PolygonStyle } from '@/components/sidebar/PolygonStyleControl';
-import { MeasureMode } from '@/components/sidebar/MeasurementTool';
+import type { BasemapType, PolygonStyle, MeasureMode } from '@/types/map-ui';
 import { Loader2 } from 'lucide-react';
 
 const Index = () => {

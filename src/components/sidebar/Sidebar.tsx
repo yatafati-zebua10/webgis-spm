@@ -2,10 +2,10 @@ import { useState, useMemo } from 'react';
 import { LandFeature } from '@/types/geojson';
 import { LandListItem } from './LandListItem';
 import { LandDetail } from './LandDetail';
-import { PolygonStyleControl, PolygonStyle } from './PolygonStyleControl';
-import { MeasurementTool, MeasureMode } from './MeasurementTool';
+import { PolygonStyleControl } from './PolygonStyleControl';
+import { MeasurementTool } from './MeasurementTool';
 import { PrintTool } from './PrintTool';
-import { BasemapType } from '@/components/map/MapView';
+import type { BasemapType, PolygonStyle, MeasureMode } from '@/types/map-ui';
 import { Search, Map, List, Settings, Satellite, MapPin, Mountain, Moon, Globe } from 'lucide-react';
 
 interface SidebarProps {
@@ -116,7 +116,7 @@ export function Sidebar({
 
       {/* Sidebar - Desktop: floating, Mobile: bottom sheet */}
       <aside className={`
-        fixed z-50 
+        fixed z-[1100]
         
         /* Mobile: bottom sheet */
         inset-x-0 bottom-0 lg:inset-x-auto lg:bottom-auto
