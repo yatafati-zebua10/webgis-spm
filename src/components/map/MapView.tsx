@@ -3,8 +3,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { LandFeature, GeoJSONData } from '@/types/geojson';
 import * as turf from '@turf/turf';
-import { PolygonStyle } from '@/components/sidebar/PolygonStyleControl';
-import { MeasureMode } from '@/components/sidebar/MeasurementTool';
+import type { BasemapType, PolygonStyle, MeasureMode } from '@/types/map-ui';
 
 // Fix for default marker icons in Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -13,8 +12,6 @@ L.Icon.Default.mergeOptions({
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
-
-export type BasemapType = 'streets' | 'satellite' | 'topo' | 'osm' | 'dark';
 
 interface MapViewProps {
   data: GeoJSONData | null;

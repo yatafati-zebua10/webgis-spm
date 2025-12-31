@@ -1,7 +1,5 @@
 import { Ruler, SquareDashed, X, Trash2 } from 'lucide-react';
-
-type MeasureMode = 'none' | 'distance' | 'area';
-export type { MeasureMode };
+import type { MeasureMode } from '@/types/map-ui';
 
 interface MeasurementToolProps {
   mode: MeasureMode;
