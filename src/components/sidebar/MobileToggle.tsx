@@ -1,4 +1,4 @@
-import { Menu } from 'lucide-react';
+import { ChevronUp, X } from 'lucide-react';
 
 interface MobileToggleProps {
   isOpen: boolean;
@@ -10,21 +10,24 @@ export function MobileToggle({ isOpen, onClick }: MobileToggleProps) {
     <button
       onClick={onClick}
       className={`
-        fixed right-0 top-1/2 -translate-y-1/2 z-30
-        w-12 h-20 
-        flex items-center justify-center
-        rounded-l-lg
+        fixed z-30
+        lg:hidden
+        
+        /* Position at bottom center when closed, hidden when open */
+        ${isOpen ? 'hidden' : 'bottom-4 left-1/2 -translate-x-1/2'}
+        
+        px-6 py-3
+        flex items-center justify-center gap-2
+        rounded-full
         shadow-elevated
         transition-all duration-300
-        lg:hidden
-        ${isOpen 
-          ? 'bg-destructive text-destructive-foreground' 
-          : 'gradient-primary text-primary-foreground'
-        }
+        gradient-primary text-primary-foreground
+        font-medium text-sm
       `}
       aria-label={isOpen ? 'Tutup sidebar' : 'Buka sidebar'}
     >
-      <Menu className="w-6 h-6" />
+      <ChevronUp className="w-5 h-5" />
+      <span>Buka Menu</span>
     </button>
   );
 }

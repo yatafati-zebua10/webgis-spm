@@ -2,8 +2,11 @@ import { useState, useMemo } from 'react';
 import { LandFeature } from '@/types/geojson';
 import { LandListItem } from './LandListItem';
 import { LandDetail } from './LandDetail';
+import { PolygonStyleControl, PolygonStyle } from './PolygonStyleControl';
+import { MeasurementTool, MeasureMode } from './MeasurementTool';
+import { PrintTool } from './PrintTool';
 import { BasemapType } from '@/components/map/MapView';
-import { Search, Map, List, Settings, Satellite, MapPin, Mountain, Moon } from 'lucide-react';
+import { Search, Map, List, Settings, Satellite, MapPin, Mountain, Moon, Globe } from 'lucide-react';
 
 interface SidebarProps {
   features: LandFeature[];
@@ -16,6 +19,12 @@ interface SidebarProps {
   findBestFeature: (idTanah: string | null, kodeBd: string | null) => LandFeature | null;
   basemap: BasemapType;
   onBasemapChange: (basemap: BasemapType) => void;
+  polygonStyle: PolygonStyle;
+  onPolygonStyleChange: (style: PolygonStyle) => void;
+  measureMode: MeasureMode;
+  onMeasureModeChange: (mode: MeasureMode) => void;
+  measureResult: string | null;
+  onMeasureClear: () => void;
 }
 
 type TabType = 'map' | 'list' | 'tools';
@@ -28,10 +37,10 @@ interface BasemapOption {
 }
 
 const BASEMAP_OPTIONS: BasemapOption[] = [
+  { id: 'osm', label: 'OpenStreetMap', icon: Globe, description: 'Peta OpenStreetMap' },
+  { id: 'satellite', label: 'Satelit Google', icon: Satellite, description: 'Citra satelit Google' },
   { id: 'streets', label: 'Streets', icon: MapPin, description: 'Peta jalan ESRI' },
-  { id: 'satellite', label: 'Satelit', icon: Satellite, description: 'Citra satelit ESRI' },
   { id: 'topo', label: 'Topografi', icon: Mountain, description: 'Peta topografi ESRI' },
-  { id: 'osm', label: 'OpenStreetMap', icon: Map, description: 'Peta OpenStreetMap' },
   { id: 'dark', label: 'Dark', icon: Moon, description: 'Peta gelap ESRI' },
 ];
 
@@ -45,7 +54,13 @@ export function Sidebar({
   onClose,
   findBestFeature,
   basemap,
-  onBasemapChange
+  onBasemapChange,
+  polygonStyle,
+  onPolygonStyleChange,
+  measureMode,
+  onMeasureModeChange,
+  measureResult,
+  onMeasureClear
 }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<TabType>('list');
   const [searchQuery, setSearchQuery] = useState('');
@@ -78,6 +93,11 @@ export function Sidebar({
     onFeatureSelect(bestFeature || feature);
   };
 
+  const handleMeasureClear = () => {
+    (window as any).__clearMeasurements?.();
+    onMeasureClear();
+  };
+
   const tabs = [
     { id: 'map' as TabType, label: 'Peta', icon: Map },
     { id: 'list' as TabType, label: 'Daftar Tanah', icon: List },
@@ -94,18 +114,32 @@ export function Sidebar({
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Desktop: floating, Mobile: bottom sheet */}
       <aside className={`
-        fixed lg:relative inset-y-0 left-0 z-50 
-        w-[85%] sm:w-[380px] lg:w-[380px] 
-        bg-sidebar border-r border-sidebar-border
+        fixed z-50 
+        
+        /* Mobile: bottom sheet */
+        inset-x-0 bottom-0 lg:inset-x-auto lg:bottom-auto
+        h-[70vh] lg:h-auto
+        rounded-t-2xl lg:rounded-2xl
+        
+        /* Desktop: floating sidebar */
+        lg:top-4 lg:left-4 lg:bottom-4
+        lg:w-[380px]
+        
+        bg-sidebar border border-sidebar-border
         flex flex-col
         transform transition-transform duration-300 ease-out
-        ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        shadow-elevated lg:shadow-none
+        ${isOpen ? 'translate-y-0' : 'translate-y-full lg:translate-y-0 lg:translate-x-0'}
+        shadow-elevated
       `}>
+        {/* Mobile Handle */}
+        <div className="lg:hidden flex justify-center py-2">
+          <div className="w-12 h-1.5 bg-border rounded-full" />
+        </div>
+
         {/* Header */}
-        <header className="gradient-header px-5 py-5 flex-shrink-0">
+        <header className="gradient-header px-5 py-4 flex-shrink-0 lg:rounded-t-2xl">
           <h1 className="text-primary-foreground font-bold text-lg tracking-wide text-center">
             WebGIS Aset Properti
           </h1>
@@ -130,7 +164,7 @@ export function Sidebar({
               `}
             >
               <tab.icon className="w-4 h-4" />
-              <span className="hidden sm:inline">{tab.label}</span>
+              <span>{tab.label}</span>
             </button>
           ))}
         </nav>
@@ -139,7 +173,8 @@ export function Sidebar({
         <div className="flex-1 overflow-hidden">
           {/* Map Settings Tab */}
           {activeTab === 'map' && (
-            <div className="p-4 space-y-4 animate-fade-in overflow-y-auto h-full">
+            <div className="p-4 space-y-4 animate-fade-in overflow-y-auto h-full scrollbar-thin">
+              {/* Basemap Selection */}
               <div className="bg-card rounded-lg border border-border p-4">
                 <h3 className="font-semibold text-sm text-primary mb-4">Pilih Basemap</h3>
                 <div className="grid grid-cols-2 gap-2">
@@ -159,13 +194,20 @@ export function Sidebar({
                         `}
                       >
                         <Icon className={`w-6 h-6 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
-                        <span className="text-xs font-medium">{option.label}</span>
+                        <span className="text-xs font-medium text-center">{option.label}</span>
                       </button>
                     );
                   })}
                 </div>
               </div>
 
+              {/* Polygon Style Control */}
+              <PolygonStyleControl
+                style={polygonStyle}
+                onChange={onPolygonStyleChange}
+              />
+
+              {/* Navigation Tips */}
               <div className="bg-card rounded-lg border border-border p-4">
                 <h3 className="font-semibold text-sm text-primary mb-3">Petunjuk Navigasi</h3>
                 <ul className="text-muted-foreground text-sm space-y-2">
@@ -251,19 +293,17 @@ export function Sidebar({
 
           {/* Tools Tab */}
           {activeTab === 'tools' && (
-            <div className="p-4 space-y-4 animate-fade-in">
-              <div className="bg-card rounded-lg border border-border p-4">
-                <h3 className="font-semibold text-sm text-primary mb-3">Pengukuran</h3>
-                <p className="text-muted-foreground text-sm mb-4">
-                  Fitur pengukuran jarak dan luas tersedia di peta.
-                </p>
-              </div>
-              <div className="bg-card rounded-lg border border-border p-4">
-                <h3 className="font-semibold text-sm text-primary mb-3">Cetak Peta</h3>
-                <p className="text-muted-foreground text-sm">
-                  Fitur cetak peta akan tersedia dalam versi mendatang.
-                </p>
-              </div>
+            <div className="p-4 space-y-4 animate-fade-in overflow-y-auto h-full scrollbar-thin">
+              {/* Measurement Tool */}
+              <MeasurementTool
+                mode={measureMode}
+                onModeChange={onMeasureModeChange}
+                result={measureResult}
+                onClear={handleMeasureClear}
+              />
+
+              {/* Print Tool */}
+              <PrintTool mapContainerId="map-container" />
             </div>
           )}
         </div>
