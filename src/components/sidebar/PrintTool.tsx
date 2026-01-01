@@ -5,6 +5,7 @@ import { jsPDF } from 'jspdf';
 
 type ExportFormat = 'pdf' | 'jpg' | 'png';
 type LayoutType = 'landscape' | 'portrait';
+type PaperSize = 'a4' | 'a3';
 
 interface PrintToolProps {
   mapContainerId: string;
@@ -13,6 +14,7 @@ interface PrintToolProps {
 export function PrintTool({ mapContainerId }: PrintToolProps) {
   const [format, setFormat] = useState<ExportFormat>('pdf');
   const [layout, setLayout] = useState<LayoutType>('landscape');
+  const [paperSize, setPaperSize] = useState<PaperSize>('a4');
   const [title, setTitle] = useState('Peta Aset Properti');
   const [isExporting, setIsExporting] = useState(false);
 
@@ -37,7 +39,7 @@ export function PrintTool({ mapContainerId }: PrintToolProps) {
         const pdf = new jsPDF({
           orientation: layout,
           unit: 'mm',
-          format: 'a4'
+          format: paperSize
         });
 
         const pageWidth = pdf.internal.pageSize.getWidth();
@@ -45,11 +47,11 @@ export function PrintTool({ mapContainerId }: PrintToolProps) {
         const margin = 10;
 
         // Header
-        pdf.setFontSize(16);
+        pdf.setFontSize(paperSize === 'a3' ? 20 : 16);
         pdf.setFont('helvetica', 'bold');
         pdf.text(title, margin, margin + 8);
 
-        pdf.setFontSize(10);
+        pdf.setFontSize(paperSize === 'a3' ? 12 : 10);
         pdf.setFont('helvetica', 'normal');
         pdf.text(`Dicetak: ${timestamp}`, margin, margin + 14);
 
@@ -64,7 +66,7 @@ export function PrintTool({ mapContainerId }: PrintToolProps) {
         pdf.addImage(imgData, 'JPEG', margin, margin + 20, finalWidth, finalHeight);
 
         // Footer
-        pdf.setFontSize(8);
+        pdf.setFontSize(paperSize === 'a3' ? 10 : 8);
         pdf.text('PT. Suparma, Tbk. - WebGIS Aset Properti', margin, pageHeight - margin);
 
         pdf.save(`${title.replace(/\s+/g, '_')}_${Date.now()}.pdf`);
@@ -115,28 +117,28 @@ export function PrintTool({ mapContainerId }: PrintToolProps) {
   };
 
   return (
-    <div className="bg-card rounded-lg border border-border p-4 space-y-4">
-      <h3 className="font-semibold text-sm text-primary mb-3 flex items-center gap-2">
-        <Printer className="w-4 h-4" />
+    <div className="bg-card rounded-lg border border-border p-3 space-y-3">
+      <h3 className="font-medium text-xs text-primary flex items-center gap-1.5">
+        <Printer className="w-3.5 h-3.5" />
         Cetak / Ekspor Peta
       </h3>
 
       {/* Title Input */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-muted-foreground">Judul</label>
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Judul</label>
         <input
           type="text"
           value={title}
           onChange={e => setTitle(e.target.value)}
-          className="w-full px-3 py-2 bg-muted border-0 rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+          className="w-full px-2.5 py-1.5 bg-muted border-0 rounded-lg text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
           placeholder="Masukkan judul..."
         />
       </div>
 
       {/* Format Selection */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-muted-foreground">Format</label>
-        <div className="grid grid-cols-3 gap-2">
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Format</label>
+        <div className="grid grid-cols-3 gap-1.5">
           {[
             { id: 'pdf' as ExportFormat, label: 'PDF', icon: FileText },
             { id: 'jpg' as ExportFormat, label: 'JPG', icon: FileImage },
@@ -148,30 +150,63 @@ export function PrintTool({ mapContainerId }: PrintToolProps) {
                 key={opt.id}
                 onClick={() => setFormat(opt.id)}
                 className={`
-                  flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all
+                  flex flex-col items-center gap-0.5 p-2 rounded-lg border-2 transition-all
                   ${format === opt.id 
                     ? 'border-primary bg-primary/10 text-primary' 
                     : 'border-border hover:border-primary/50'
                   }
                 `}
               >
-                <Icon className="w-5 h-5" />
-                <span className="text-xs font-medium">{opt.label}</span>
+                <Icon className="w-4 h-4" />
+                <span className="text-[10px] font-medium">{opt.label}</span>
               </button>
             );
           })}
         </div>
       </div>
 
+      {/* Paper Size (PDF only) */}
+      {format === 'pdf' && (
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">Ukuran Kertas</label>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              onClick={() => setPaperSize('a4')}
+              className={`
+                p-2 rounded-lg border-2 transition-all text-xs font-medium
+                ${paperSize === 'a4' 
+                  ? 'border-primary bg-primary/10 text-primary' 
+                  : 'border-border hover:border-primary/50'
+                }
+              `}
+            >
+              A4
+            </button>
+            <button
+              onClick={() => setPaperSize('a3')}
+              className={`
+                p-2 rounded-lg border-2 transition-all text-xs font-medium
+                ${paperSize === 'a3' 
+                  ? 'border-primary bg-primary/10 text-primary' 
+                  : 'border-border hover:border-primary/50'
+                }
+              `}
+            >
+              A3
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Layout Selection (PDF only) */}
       {format === 'pdf' && (
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-muted-foreground">Layout</label>
-          <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">Layout</label>
+          <div className="grid grid-cols-2 gap-1.5">
             <button
               onClick={() => setLayout('landscape')}
               className={`
-                p-3 rounded-lg border-2 transition-all text-sm font-medium
+                p-2 rounded-lg border-2 transition-all text-xs font-medium
                 ${layout === 'landscape' 
                   ? 'border-primary bg-primary/10 text-primary' 
                   : 'border-border hover:border-primary/50'
@@ -183,7 +218,7 @@ export function PrintTool({ mapContainerId }: PrintToolProps) {
             <button
               onClick={() => setLayout('portrait')}
               className={`
-                p-3 rounded-lg border-2 transition-all text-sm font-medium
+                p-2 rounded-lg border-2 transition-all text-xs font-medium
                 ${layout === 'portrait' 
                   ? 'border-primary bg-primary/10 text-primary' 
                   : 'border-border hover:border-primary/50'
@@ -200,16 +235,16 @@ export function PrintTool({ mapContainerId }: PrintToolProps) {
       <button
         onClick={handleExport}
         disabled={isExporting}
-        className="w-full flex items-center justify-center gap-2 p-4 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50"
+        className="w-full flex items-center justify-center gap-1.5 p-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-xs hover:bg-primary/90 transition-colors disabled:opacity-50"
       >
         {isExporting ? (
           <>
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <Loader2 className="w-4 h-4 animate-spin" />
             <span>Mengekspor...</span>
           </>
         ) : (
           <>
-            <Printer className="w-5 h-5" />
+            <Printer className="w-4 h-4" />
             <span>Ekspor Peta</span>
           </>
         )}
