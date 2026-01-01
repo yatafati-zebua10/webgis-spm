@@ -5,8 +5,9 @@ import { LandDetail } from './LandDetail';
 import { PolygonStyleControl } from './PolygonStyleControl';
 import { MeasurementTool } from './MeasurementTool';
 import { PrintTool } from './PrintTool';
+import { FileUploadZone } from './FileUploadZone';
 import type { BasemapType, PolygonStyle, MeasureMode } from '@/types/map-ui';
-import { Search, Map, List, Settings, Satellite, MapPin, Mountain, Moon, Globe } from 'lucide-react';
+import { Search, Map, List, Settings, Satellite, MapPin, Mountain, Moon, Globe, X } from 'lucide-react';
 
 interface SidebarProps {
   features: LandFeature[];
@@ -25,6 +26,11 @@ interface SidebarProps {
   onMeasureModeChange: (mode: MeasureMode) => void;
   measureResult: string | null;
   onMeasureClear: () => void;
+  polygonLayerVisible: boolean;
+  onPolygonLayerVisibleChange: (visible: boolean) => void;
+  uploadedLayerVisible: boolean;
+  onUploadedLayerVisibleChange: (visible: boolean) => void;
+  onFileUpload: (data: any, fileName: string) => void;
 }
 
 type TabType = 'map' | 'list' | 'tools';
@@ -60,7 +66,12 @@ export function Sidebar({
   measureMode,
   onMeasureModeChange,
   measureResult,
-  onMeasureClear
+  onMeasureClear,
+  polygonLayerVisible,
+  onPolygonLayerVisibleChange,
+  uploadedLayerVisible,
+  onUploadedLayerVisibleChange,
+  onFileUpload
 }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<TabType>('list');
   const [searchQuery, setSearchQuery] = useState('');
@@ -100,7 +111,7 @@ export function Sidebar({
 
   const tabs = [
     { id: 'map' as TabType, label: 'Peta', icon: Map },
-    { id: 'list' as TabType, label: 'Daftar Tanah', icon: List },
+    { id: 'list' as TabType, label: 'Daftar', icon: List },
     { id: 'tools' as TabType, label: 'Alat', icon: Settings },
   ];
 
@@ -109,7 +120,7 @@ export function Sidebar({
       {/* Mobile Backdrop */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-foreground/30 z-40 lg:hidden animate-fade-in"
+          className="fixed inset-0 bg-foreground/30 z-[1050] lg:hidden animate-fade-in"
           onClick={onClose}
         />
       )}
@@ -120,30 +131,38 @@ export function Sidebar({
         
         /* Mobile: bottom sheet */
         inset-x-0 bottom-0 lg:inset-x-auto lg:bottom-auto
-        h-[70vh] lg:h-auto
+        h-[65vh] lg:h-auto
+        max-h-[85vh] lg:max-h-[calc(100vh-2rem)]
         rounded-t-2xl lg:rounded-2xl
         
         /* Desktop: floating sidebar */
         lg:top-4 lg:left-4 lg:bottom-4
-        lg:w-[380px]
+        lg:w-[340px]
         
         bg-sidebar border border-sidebar-border
         flex flex-col
         transform transition-transform duration-300 ease-out
         ${isOpen ? 'translate-y-0' : 'translate-y-full lg:translate-y-0 lg:translate-x-0'}
         shadow-elevated
+        overflow-hidden
       `}>
-        {/* Mobile Handle */}
-        <div className="lg:hidden flex justify-center py-2">
-          <div className="w-12 h-1.5 bg-border rounded-full" />
+        {/* Mobile Handle & Close */}
+        <div className="lg:hidden flex justify-center items-center py-2 relative">
+          <div className="w-10 h-1 bg-border rounded-full" />
+          <button 
+            onClick={onClose}
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 hover:bg-muted rounded-full"
+          >
+            <X className="w-4 h-4 text-muted-foreground" />
+          </button>
         </div>
 
         {/* Header */}
-        <header className="gradient-header px-5 py-4 flex-shrink-0 lg:rounded-t-2xl">
-          <h1 className="text-primary-foreground font-bold text-lg tracking-wide text-center">
+        <header className="gradient-header px-4 py-3 flex-shrink-0 lg:rounded-t-2xl">
+          <h1 className="text-primary-foreground font-bold text-sm tracking-wide text-center">
             WebGIS Aset Properti
           </h1>
-          <p className="text-primary-foreground/70 text-xs text-center mt-1">
+          <p className="text-primary-foreground/70 text-[10px] text-center mt-0.5">
             PT. Suparma, Tbk.
           </p>
         </header>
@@ -155,29 +174,29 @@ export function Sidebar({
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`
-                flex-1 py-3.5 text-sm font-medium transition-all
-                flex items-center justify-center gap-1.5
+                flex-1 py-2.5 text-xs font-medium transition-all
+                flex items-center justify-center gap-1
                 ${activeTab === tab.id 
                   ? 'tab-active' 
                   : 'text-muted-foreground hover:text-foreground'
                 }
               `}
             >
-              <tab.icon className="w-4 h-4" />
+              <tab.icon className="w-3.5 h-3.5" />
               <span>{tab.label}</span>
             </button>
           ))}
         </nav>
 
-        {/* Tab Content */}
-        <div className="flex-1 overflow-hidden">
+        {/* Tab Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto scrollbar-thin">
           {/* Map Settings Tab */}
           {activeTab === 'map' && (
-            <div className="p-4 space-y-4 animate-fade-in overflow-y-auto h-full scrollbar-thin">
+            <div className="p-3 space-y-3 animate-fade-in">
               {/* Basemap Selection */}
-              <div className="bg-card rounded-lg border border-border p-4">
-                <h3 className="font-semibold text-sm text-primary mb-4">Pilih Basemap</h3>
-                <div className="grid grid-cols-2 gap-2">
+              <div className="bg-card rounded-lg border border-border p-3">
+                <h3 className="font-medium text-xs text-primary mb-2">Pilih Basemap</h3>
+                <div className="grid grid-cols-2 gap-1.5">
                   {BASEMAP_OPTIONS.map(option => {
                     const Icon = option.icon;
                     const isActive = basemap === option.id;
@@ -186,15 +205,15 @@ export function Sidebar({
                         key={option.id}
                         onClick={() => onBasemapChange(option.id)}
                         className={`
-                          flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all
+                          flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all
                           ${isActive 
                             ? 'border-primary bg-primary/10 text-primary' 
                             : 'border-border hover:border-primary/50 hover:bg-muted/50'
                           }
                         `}
                       >
-                        <Icon className={`w-6 h-6 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
-                        <span className="text-xs font-medium text-center">{option.label}</span>
+                        <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                        <span className="text-[10px] font-medium text-center">{option.label}</span>
                       </button>
                     );
                   })}
@@ -205,23 +224,32 @@ export function Sidebar({
               <PolygonStyleControl
                 style={polygonStyle}
                 onChange={onPolygonStyleChange}
+                isLayerVisible={polygonLayerVisible}
+                onToggleLayer={onPolygonLayerVisibleChange}
+              />
+
+              {/* File Upload Zone */}
+              <FileUploadZone
+                onFileLoad={onFileUpload}
+                isLayerVisible={uploadedLayerVisible}
+                onToggleLayer={onUploadedLayerVisibleChange}
               />
 
               {/* Navigation Tips */}
-              <div className="bg-card rounded-lg border border-border p-4">
-                <h3 className="font-semibold text-sm text-primary mb-3">Petunjuk Navigasi</h3>
-                <ul className="text-muted-foreground text-sm space-y-2">
-                  <li className="flex items-start gap-2">
+              <div className="bg-card rounded-lg border border-border p-3">
+                <h3 className="font-medium text-xs text-primary mb-2">Petunjuk Navigasi</h3>
+                <ul className="text-muted-foreground text-[10px] space-y-1">
+                  <li className="flex items-start gap-1.5">
                     <span className="text-primary">•</span>
-                    <span>Gunakan scroll untuk zoom in/out</span>
+                    <span>Scroll untuk zoom in/out</span>
                   </li>
-                  <li className="flex items-start gap-2">
+                  <li className="flex items-start gap-1.5">
                     <span className="text-primary">•</span>
-                    <span>Klik dan drag untuk menggeser peta</span>
+                    <span>Klik dan drag untuk menggeser</span>
                   </li>
-                  <li className="flex items-start gap-2">
+                  <li className="flex items-start gap-1.5">
                     <span className="text-primary">•</span>
-                    <span>Klik bidang tanah untuk melihat detail</span>
+                    <span>Klik bidang untuk melihat detail</span>
                   </li>
                 </ul>
               </div>
@@ -239,32 +267,32 @@ export function Sidebar({
               ) : (
                 <>
                   {/* Search Section */}
-                  <div className="p-4 space-y-3 flex-shrink-0 border-b border-border">
+                  <div className="p-3 space-y-2 flex-shrink-0 border-b border-border">
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                       <input
                         type="text"
-                        placeholder="Cari pemilik, eks, atau ID tanah..."
+                        placeholder="Cari pemilik, eks, atau ID..."
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
-                        className="search-input pl-10"
+                        className="w-full pl-8 pr-3 py-2 bg-muted border-0 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
                       />
                     </div>
                     <input
                       type="text"
-                      placeholder="Cari alamat (desa, kecamatan, kabupaten)..."
+                      placeholder="Cari alamat..."
                       value={addressQuery}
                       onChange={e => setAddressQuery(e.target.value)}
-                      className="search-input"
+                      className="w-full px-3 py-2 bg-muted border-0 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                   </div>
 
                   {/* Feature List */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin">
+                  <div className="flex-1 overflow-y-auto p-3 space-y-1.5 scrollbar-thin">
                     {displayFeatures.length === 0 ? (
-                      <div className="text-center py-12 text-muted-foreground">
-                        <Search className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                        <p className="text-sm">Tidak ada data yang sesuai</p>
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Search className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                        <p className="text-xs">Tidak ada data yang sesuai</p>
                       </div>
                     ) : (
                       displayFeatures.map((feature, idx) => (
@@ -278,12 +306,9 @@ export function Sidebar({
                   </div>
 
                   {/* Footer */}
-                  <div className="p-3 border-t border-border text-center flex-shrink-0">
-                    <p className="text-xs text-muted-foreground">
-                      Data diperbarui: {lastModified || 'Tidak tersedia'}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {displayFeatures.length} bidang tanah
+                  <div className="p-2 border-t border-border text-center flex-shrink-0">
+                    <p className="text-[10px] text-muted-foreground">
+                      {lastModified || 'Data tersedia'} • {displayFeatures.length} bidang
                     </p>
                   </div>
                 </>
@@ -293,7 +318,7 @@ export function Sidebar({
 
           {/* Tools Tab */}
           {activeTab === 'tools' && (
-            <div className="p-4 space-y-4 animate-fade-in overflow-y-auto h-full scrollbar-thin">
+            <div className="p-3 space-y-3 animate-fade-in">
               {/* Measurement Tool */}
               <MeasurementTool
                 mode={measureMode}

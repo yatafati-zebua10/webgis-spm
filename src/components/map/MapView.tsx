@@ -22,6 +22,9 @@ interface MapViewProps {
   measureMode: MeasureMode;
   onMeasureResult: (result: string | null) => void;
   onMeasureClear: () => void;
+  polygonLayerVisible: boolean;
+  uploadedData: any;
+  uploadedLayerVisible: boolean;
 }
 
 const BASEMAP_URLS: Record<BasemapType, { url: string; attribution: string; maxZoom?: number }> = {
@@ -56,11 +59,15 @@ export function MapView({
   polygonStyle,
   measureMode,
   onMeasureResult,
-  onMeasureClear
+  onMeasureClear,
+  polygonLayerVisible,
+  uploadedData,
+  uploadedLayerVisible
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const geoJsonLayer = useRef<L.GeoJSON | null>(null);
+  const uploadedLayer = useRef<L.GeoJSON | null>(null);
   const highlightLayer = useRef<L.GeoJSON | null>(null);
   const basemapLayer = useRef<L.TileLayer | null>(null);
   const userMarker = useRef<L.Marker | null>(null);
@@ -82,17 +89,12 @@ export function MapView({
       zoomControl: false,
     });
 
-    // Add zoom control to bottom right
     L.control.zoom({ position: 'bottomright' }).addTo(map.current);
 
-    // Add initial basemap (default is OSM)
     const { url, attribution, maxZoom } = BASEMAP_URLS['osm'];
     basemapLayer.current = L.tileLayer(url, { attribution, maxZoom: maxZoom || 19 }).addTo(map.current);
 
-    // Initialize labels layer
     labelsLayer.current = L.layerGroup().addTo(map.current);
-
-    // Initialize measurement layer
     measureLayer.current = L.layerGroup().addTo(map.current);
 
     return () => {
@@ -101,28 +103,20 @@ export function MapView({
     };
   }, []);
 
-  // Update basemap when changed
+  // Update basemap
   useEffect(() => {
     if (!map.current) return;
-
     const { url, attribution, maxZoom } = BASEMAP_URLS[basemap];
-
-    if (basemapLayer.current) {
-      map.current.removeLayer(basemapLayer.current);
-    }
-
+    if (basemapLayer.current) map.current.removeLayer(basemapLayer.current);
     basemapLayer.current = L.tileLayer(url, { attribution, maxZoom: maxZoom || 19 }).addTo(map.current);
     basemapLayer.current.bringToBack();
   }, [basemap]);
 
-  // Update labels based on zoom
+  // Update labels
   const updateLabels = useCallback(() => {
     if (!map.current || !data || !labelsLayer.current) return;
-
     labelsLayer.current.clearLayers();
     const zoom = map.current.getZoom();
-
-    // Only show labels at certain zoom levels
     if (zoom < 14) return;
 
     const fontSize = zoom >= 17 ? 12 : zoom >= 15 ? 10 : 8;
@@ -130,32 +124,28 @@ export function MapView({
     data.features.forEach(feature => {
       const idDesa = feature.properties.IDTANAH || feature.properties.KODEBD;
       if (!idDesa) return;
-
       try {
         const center = turf.center(feature as turf.AllGeoJSON);
         const [lng, lat] = center.geometry.coordinates;
-
         const label = L.divIcon({
           className: 'land-label',
           html: `<span style="font-size: ${fontSize}px">${idDesa}</span>`,
           iconSize: [100, 20],
           iconAnchor: [50, 10]
         });
-
         L.marker([lat, lng], { icon: label, interactive: false }).addTo(labelsLayer.current!);
-      } catch (e) {
-        // Skip invalid geometries
-      }
+      } catch (e) {}
     });
   }, [data]);
 
-  // Add GeoJSON layer when data is available
+  // GeoJSON layer
   useEffect(() => {
     if (!map.current || !data) return;
+    if (geoJsonLayer.current) map.current.removeLayer(geoJsonLayer.current);
 
-    // Remove existing layer
-    if (geoJsonLayer.current) {
-      map.current.removeLayer(geoJsonLayer.current);
+    if (!polygonLayerVisible) {
+      labelsLayer.current?.clearLayers();
+      return;
     }
 
     geoJsonLayer.current = L.geoJSON(data as GeoJSON.FeatureCollection, {
@@ -171,93 +161,61 @@ export function MapView({
             f.properties.KODEBD === feature.properties?.KODEBD ||
             f.properties.IDTANAH === feature.properties?.IDTANAH
           );
-          if (landFeature) {
-            onFeatureClick(landFeature);
-          }
+          if (landFeature) onFeatureClick(landFeature);
         });
-
-        layer.on('mouseover', () => {
-          (layer as L.Path).setStyle({ fillOpacity: Math.min(polygonStyle.fillOpacity + 0.15, 1) });
-        });
-
-        layer.on('mouseout', () => {
-          (layer as L.Path).setStyle({ fillOpacity: polygonStyle.fillOpacity });
-        });
+        layer.on('mouseover', () => (layer as L.Path).setStyle({ fillOpacity: Math.min(polygonStyle.fillOpacity + 0.15, 1) }));
+        layer.on('mouseout', () => (layer as L.Path).setStyle({ fillOpacity: polygonStyle.fillOpacity }));
       }
     }).addTo(map.current);
 
-    // Update labels
     updateLabels();
-
-    // Listen for zoom changes
     map.current.on('zoomend', updateLabels);
+    return () => { map.current?.off('zoomend', updateLabels); };
+  }, [data, onFeatureClick, polygonStyle, updateLabels, polygonLayerVisible]);
 
-    return () => {
-      map.current?.off('zoomend', updateLabels);
-    };
-  }, [data, onFeatureClick, polygonStyle, updateLabels]);
+  // Uploaded data layer
+  useEffect(() => {
+    if (!map.current) return;
+    if (uploadedLayer.current) {
+      map.current.removeLayer(uploadedLayer.current);
+      uploadedLayer.current = null;
+    }
+    if (!uploadedData || !uploadedLayerVisible) return;
 
-  // Highlight selected feature
+    uploadedLayer.current = L.geoJSON(uploadedData, {
+      style: { color: '#ef4444', weight: 2, fillColor: '#ef4444', fillOpacity: 0.3 }
+    }).addTo(map.current);
+  }, [uploadedData, uploadedLayerVisible]);
+
+  // Highlight selected
   useEffect(() => {
     if (!map.current || !data) return;
-
-    // Remove existing highlight
     if (highlightLayer.current) {
       map.current.removeLayer(highlightLayer.current);
       highlightLayer.current = null;
     }
-
     if (!selectedFeature) return;
 
-    // Add highlight layer
     highlightLayer.current = L.geoJSON(selectedFeature as GeoJSON.Feature, {
-      style: {
-        color: '#0ea5e9',
-        weight: 3,
-        fillColor: '#0ea5e9',
-        fillOpacity: 0.5,
-      }
+      style: { color: '#0ea5e9', weight: 3, fillColor: '#0ea5e9', fillOpacity: 0.5 }
     }).addTo(map.current);
 
-    // Fly to feature
     const bbox = turf.bbox(selectedFeature);
-    map.current.fitBounds([
-      [bbox[1], bbox[0]],
-      [bbox[3], bbox[2]]
-    ], { padding: [50, 50], maxZoom: 17 });
-
+    map.current.fitBounds([[bbox[1], bbox[0]], [bbox[3], bbox[2]]], { padding: [50, 50], maxZoom: 17 });
   }, [selectedFeature, data]);
 
-  // Measurement mode handler
+  // Measurement
   useEffect(() => {
     if (!map.current) return;
 
     const handleMapClick = (e: L.LeafletMouseEvent) => {
       if (measureMode === 'none') return;
-
       measurePoints.current.push(e.latlng);
-      
-      // Add point marker
-      const marker = L.circleMarker(e.latlng, {
-        radius: 6,
-        fillColor: '#0ea5e9',
-        color: '#fff',
-        weight: 2,
-        fillOpacity: 1
-      }).addTo(measureLayer.current!);
+      L.circleMarker(e.latlng, { radius: 6, fillColor: '#0ea5e9', color: '#fff', weight: 2, fillOpacity: 1 }).addTo(measureLayer.current!);
 
       if (measureMode === 'distance') {
-        // Update line
-        if (measureLine.current) {
-          map.current!.removeLayer(measureLine.current);
-        }
-        measureLine.current = L.polyline(measurePoints.current, {
-          color: '#0ea5e9',
-          weight: 3,
-          dashArray: '10, 5'
-        }).addTo(measureLayer.current!);
-
-        // Calculate distance
+        if (measureLine.current) map.current!.removeLayer(measureLine.current);
+        measureLine.current = L.polyline(measurePoints.current, { color: '#0ea5e9', weight: 3, dashArray: '10, 5' }).addTo(measureLayer.current!);
         if (measurePoints.current.length >= 2) {
           let totalDistance = 0;
           for (let i = 1; i < measurePoints.current.length; i++) {
@@ -265,61 +223,24 @@ export function MapView({
             const to = turf.point([measurePoints.current[i].lng, measurePoints.current[i].lat]);
             totalDistance += turf.distance(from, to, { units: 'meters' });
           }
-          
-          if (totalDistance >= 1000) {
-            onMeasureResult(`${(totalDistance / 1000).toFixed(2)} km`);
-          } else {
-            onMeasureResult(`${totalDistance.toFixed(2)} m`);
-          }
+          onMeasureResult(totalDistance >= 1000 ? `${(totalDistance / 1000).toFixed(2)} km` : `${totalDistance.toFixed(2)} m`);
         }
       } else if (measureMode === 'area') {
-        // Update polygon
-        if (measurePolygon.current) {
-          map.current!.removeLayer(measurePolygon.current);
-        }
+        if (measurePolygon.current) map.current!.removeLayer(measurePolygon.current);
         if (measurePoints.current.length >= 3) {
-          measurePolygon.current = L.polygon(measurePoints.current, {
-            color: '#0ea5e9',
-            weight: 2,
-            fillColor: '#0ea5e9',
-            fillOpacity: 0.3
-          }).addTo(measureLayer.current!);
-
-          // Calculate area
+          measurePolygon.current = L.polygon(measurePoints.current, { color: '#0ea5e9', weight: 2, fillColor: '#0ea5e9', fillOpacity: 0.3 }).addTo(measureLayer.current!);
           const coords = measurePoints.current.map(p => [p.lng, p.lat]);
-          coords.push(coords[0]); // Close the polygon
-          const polygon = turf.polygon([coords]);
-          const area = turf.area(polygon);
-          
-          if (area >= 10000) {
-            onMeasureResult(`${(area / 10000).toFixed(2)} ha`);
-          } else {
-            onMeasureResult(`${area.toFixed(2)} m²`);
-          }
+          coords.push(coords[0]);
+          const area = turf.area(turf.polygon([coords]));
+          onMeasureResult(area >= 10000 ? `${(area / 10000).toFixed(2)} ha` : `${area.toFixed(2)} m²`);
         } else {
-          // Draw line while building polygon
-          if (measureLine.current) {
-            map.current!.removeLayer(measureLine.current);
-          }
-          measureLine.current = L.polyline(measurePoints.current, {
-            color: '#0ea5e9',
-            weight: 2,
-            dashArray: '5, 5'
-          }).addTo(measureLayer.current!);
+          if (measureLine.current) map.current!.removeLayer(measureLine.current);
+          measureLine.current = L.polyline(measurePoints.current, { color: '#0ea5e9', weight: 2, dashArray: '5, 5' }).addTo(measureLayer.current!);
         }
       }
     };
 
-    const handleDblClick = (e: L.LeafletMouseEvent) => {
-      if (measureMode === 'none') return;
-      e.originalEvent.preventDefault();
-      // Double click finishes measurement - keep result shown
-    };
-
     map.current.on('click', handleMapClick);
-    map.current.on('dblclick', handleDblClick);
-
-    // Clear measurement when mode changes to none or changes type
     if (measureMode === 'none') {
       measurePoints.current = [];
       measureLayer.current?.clearLayers();
@@ -327,28 +248,9 @@ export function MapView({
       measurePolygon.current = null;
     }
 
-    return () => {
-      map.current?.off('click', handleMapClick);
-      map.current?.off('dblclick', handleDblClick);
-    };
+    return () => { map.current?.off('click', handleMapClick); };
   }, [measureMode, onMeasureResult]);
 
-  // Clear measurements when requested
-  useEffect(() => {
-    const clearMeasurements = () => {
-      measurePoints.current = [];
-      measureLayer.current?.clearLayers();
-      measureLine.current = null;
-      measurePolygon.current = null;
-    };
-
-    // This is called when onMeasureClear is triggered
-    return () => {
-      // Cleanup if needed
-    };
-  }, []);
-
-  // Expose clear function
   useEffect(() => {
     (window as any).__clearMeasurements = () => {
       measurePoints.current = [];
@@ -359,54 +261,34 @@ export function MapView({
     };
   }, [onMeasureResult]);
 
-  // Locate user function
   const locateUser = () => {
     if (!navigator.geolocation || !map.current) return;
-
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const coords: L.LatLngTuple = [position.coords.latitude, position.coords.longitude];
-
-        if (userMarker.current) {
-          userMarker.current.setLatLng(coords);
-        } else {
+        if (userMarker.current) userMarker.current.setLatLng(coords);
+        else {
           userMarker.current = L.marker(coords, {
-            icon: L.divIcon({
-              className: 'user-location-marker',
-              html: '<div class="user-marker-dot"></div>',
-              iconSize: [20, 20],
-              iconAnchor: [10, 10]
-            })
+            icon: L.divIcon({ className: 'user-location-marker', html: '<div class="user-marker-dot"></div>', iconSize: [20, 20], iconAnchor: [10, 10] })
           }).addTo(map.current!);
         }
-
         map.current?.flyTo(coords, 15);
       },
-      (error) => {
-        console.error('Geolocation error:', error);
-      }
+      (error) => console.error('Geolocation error:', error)
     );
   };
 
   return (
     <div className="relative h-full w-full">
       <div ref={mapContainer} id="map-container" className="h-full w-full" />
-
-      {/* Measurement Mode Indicator */}
       {measureMode !== 'none' && (
-        <div className="absolute top-4 left-4 z-[1000] bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg font-medium text-sm">
+        <div className="absolute top-4 left-4 z-[1000] bg-primary text-primary-foreground px-3 py-1.5 rounded-lg shadow-lg font-medium text-xs">
           Mode: {measureMode === 'distance' ? 'Ukur Jarak' : 'Ukur Luas'}
         </div>
       )}
-
-      {/* Map Controls */}
       <div className="absolute top-4 right-4 flex flex-col gap-2 z-[1000]">
-        <button
-          onClick={locateUser}
-          className="control-button"
-          title="Lokasi Saya"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <button onClick={locateUser} className="control-button" title="Lokasi Saya">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>

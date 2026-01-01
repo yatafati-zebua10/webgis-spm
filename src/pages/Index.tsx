@@ -20,6 +20,11 @@ const Index = () => {
     fillOpacity: 0.35
   });
 
+  // Layer visibility
+  const [polygonLayerVisible, setPolygonLayerVisible] = useState(true);
+  const [uploadedLayerVisible, setUploadedLayerVisible] = useState(true);
+  const [uploadedData, setUploadedData] = useState<any>(null);
+
   // Measurement state
   const [measureMode, setMeasureMode] = useState<MeasureMode>('none');
   const [measureResult, setMeasureResult] = useState<string | null>(null);
@@ -57,6 +62,13 @@ const Index = () => {
 
   const handleMeasureClear = useCallback(() => {
     setMeasureResult(null);
+  }, []);
+
+  const handleFileUpload = useCallback((fileData: any, fileName: string) => {
+    setUploadedData(fileData);
+    if (fileData) {
+      setUploadedLayerVisible(true);
+    }
   }, []);
 
   if (loading) {
@@ -97,6 +109,9 @@ const Index = () => {
           measureMode={measureMode}
           onMeasureResult={handleMeasureResult}
           onMeasureClear={handleMeasureClear}
+          polygonLayerVisible={polygonLayerVisible}
+          uploadedData={uploadedData}
+          uploadedLayerVisible={uploadedLayerVisible}
         />
       </main>
 
@@ -118,12 +133,17 @@ const Index = () => {
         onMeasureModeChange={handleMeasureModeChange}
         measureResult={measureResult}
         onMeasureClear={handleMeasureClear}
+        polygonLayerVisible={polygonLayerVisible}
+        onPolygonLayerVisibleChange={setPolygonLayerVisible}
+        uploadedLayerVisible={uploadedLayerVisible}
+        onUploadedLayerVisibleChange={setUploadedLayerVisible}
+        onFileUpload={handleFileUpload}
       />
 
-      {/* Mobile Toggle */}
+      {/* Mobile Toggle - Always visible when sidebar closed */}
       <MobileToggle 
         isOpen={sidebarOpen} 
-        onClick={() => setSidebarOpen(!sidebarOpen)} 
+        onClick={() => setSidebarOpen(true)} 
       />
     </div>
   );
