@@ -319,23 +319,28 @@
   @apply text-xs bg-background/80 rounded-tl-md;
 }
 
-/* Land Labels */
-.land-label {
+/* Land Labels - text only with outline masking */
+.land-label-text {
   background: transparent;
   border: none;
   box-shadow: none;
   text-align: center;
 }
 
-.land-label span {
-  background: hsl(var(--card) / 0.9);
+.land-label-text span {
   color: hsl(var(--primary));
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 4px;
-  border: 1px solid hsl(var(--border));
+  font-weight: 700;
   white-space: nowrap;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  text-shadow: 
+    -1px -1px 0 hsl(var(--background)),
+    1px -1px 0 hsl(var(--background)),
+    -1px 1px 0 hsl(var(--background)),
+    1px 1px 0 hsl(var(--background)),
+    0 -1px 0 hsl(var(--background)),
+    0 1px 0 hsl(var(--background)),
+    -1px 0 0 hsl(var(--background)),
+    1px 0 0 hsl(var(--background));
+  letter-spacing: 0.02em;
 }
 
 /* Measurement styles */

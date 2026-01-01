@@ -7,7 +7,7 @@ import { MeasurementTool } from './MeasurementTool';
 import { PrintTool } from './PrintTool';
 import { FileUploadZone } from './FileUploadZone';
 import type { BasemapType, PolygonStyle, MeasureMode } from '@/types/map-ui';
-import { Search, Map, List, Settings, Satellite, MapPin, Mountain, Moon, Globe, X } from 'lucide-react';
+import { Search, Map, List, Settings, Satellite, MapPin, Globe, Layers, X } from 'lucide-react';
 
 interface SidebarProps {
   features: LandFeature[];
@@ -44,10 +44,9 @@ interface BasemapOption {
 
 const BASEMAP_OPTIONS: BasemapOption[] = [
   { id: 'osm', label: 'OpenStreetMap', icon: Globe, description: 'Peta OpenStreetMap' },
-  { id: 'satellite', label: 'Satelit Google', icon: Satellite, description: 'Citra satelit Google' },
-  { id: 'streets', label: 'Streets', icon: MapPin, description: 'Peta jalan ESRI' },
-  { id: 'topo', label: 'Topografi', icon: Mountain, description: 'Peta topografi ESRI' },
-  { id: 'dark', label: 'Dark', icon: Moon, description: 'Peta gelap ESRI' },
+  { id: 'satellite', label: 'Satelit', icon: Satellite, description: 'Citra satelit Google' },
+  { id: 'googleMaps', label: 'Google Maps', icon: MapPin, description: 'Peta jalan Google' },
+  { id: 'hybrid', label: 'Hybrid', icon: Layers, description: 'Satelit + label jalan' },
 ];
 
 export function Sidebar({ 

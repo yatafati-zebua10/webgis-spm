@@ -1,4 +1,4 @@
-export type BasemapType = 'streets' | 'satellite' | 'topo' | 'osm' | 'dark';
+export type BasemapType = 'osm' | 'satellite' | 'googleMaps' | 'hybrid';
 
 export type MeasureMode = 'none' | 'distance' | 'area';
 

@@ -37,17 +37,15 @@ const BASEMAP_URLS: Record<BasemapType, { url: string; attribution: string; maxZ
     attribution: '&copy; Google Maps',
     maxZoom: 20
   },
-  streets: {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Tiles &copy; Esri'
+  googleMaps: {
+    url: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+    attribution: '&copy; Google Maps',
+    maxZoom: 20
   },
-  topo: {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Tiles &copy; Esri'
-  },
-  dark: {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Tiles &copy; Esri'
+  hybrid: {
+    url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+    attribution: '&copy; Google Maps',
+    maxZoom: 20
   }
 };
 
@@ -119,19 +117,38 @@ export function MapView({
     const zoom = map.current.getZoom();
     if (zoom < 14) return;
 
-    const fontSize = zoom >= 17 ? 12 : zoom >= 15 ? 10 : 8;
-    
-    data.features.forEach(feature => {
+    // Calculate feature areas for smart label display
+    const featuresWithArea = data.features.map(feature => {
+      let area = 0;
+      try {
+        area = turf.area(feature as turf.AllGeoJSON);
+      } catch (e) {}
+      return { feature, area };
+    }).sort((a, b) => b.area - a.area);
+
+    // At lower zoom levels, only show labels for larger features
+    const maxLabels = zoom >= 17 ? featuresWithArea.length : zoom >= 16 ? Math.ceil(featuresWithArea.length * 0.7) : zoom >= 15 ? Math.ceil(featuresWithArea.length * 0.4) : Math.ceil(featuresWithArea.length * 0.2);
+    const visibleFeatures = featuresWithArea.slice(0, maxLabels);
+
+    visibleFeatures.forEach(({ feature, area }) => {
       const idDesa = feature.properties.IDTANAH || feature.properties.KODEBD;
       if (!idDesa) return;
       try {
         const center = turf.center(feature as turf.AllGeoJSON);
         const [lng, lat] = center.geometry.coordinates;
+        
+        // Dynamic font size based on zoom and area
+        const baseFontSize = zoom >= 17 ? 11 : zoom >= 16 ? 10 : zoom >= 15 ? 9 : 8;
+        const fontSize = area < 500 ? Math.max(baseFontSize - 2, 7) : baseFontSize;
+        
+        // Small lands get random rotation for visual variety
+        const rotation = area < 1000 ? (Math.random() * 30 - 15) : 0;
+        
         const label = L.divIcon({
-          className: 'land-label',
-          html: `<span style="font-size: ${fontSize}px">${idDesa}</span>`,
-          iconSize: [100, 20],
-          iconAnchor: [50, 10]
+          className: 'land-label-text',
+          html: `<span style="font-size: ${fontSize}px; transform: rotate(${rotation}deg); display: inline-block;">${idDesa}</span>`,
+          iconSize: [80, 16],
+          iconAnchor: [40, 8]
         });
         L.marker([lat, lng], { icon: label, interactive: false }).addTo(labelsLayer.current!);
       } catch (e) {}
