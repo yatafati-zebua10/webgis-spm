@@ -1,5 +1,13 @@
 import { useState, useCallback } from 'react';
-import { Upload, FileUp, X, Check, AlertCircle } from 'lucide-react';
+import { Upload, FileUp, X, Trash2, AlertCircle } from 'lucide-react';
+
+interface UploadedLayer {
+  id: string;
+  fileName: string;
+  format: string;
+  data: any;
+  visible: boolean;
+}
 
 interface FileUploadZoneProps {
   onFileLoad: (data: any, fileName: string) => void;
@@ -9,9 +17,18 @@ interface FileUploadZoneProps {
 
 export function FileUploadZone({ onFileLoad, isLayerVisible, onToggleLayer }: FileUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [layers, setLayers] = useState<UploadedLayer[]>([]);
+
+  const getFileFormat = (fileName: string): string => {
+    const ext = fileName.split('.').pop()?.toLowerCase() || '';
+    if (ext === 'geojson' || ext === 'json') return 'GeoJSON';
+    if (ext === 'kml') return 'KML';
+    if (ext === 'kmz') return 'KMZ';
+    if (ext === 'zip') return 'SHP';
+    return ext.toUpperCase();
+  };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -30,14 +47,13 @@ export function FileUploadZone({ onFileLoad, isLayerVisible, onToggleLayer }: Fi
     const ext = file.name.split('.').pop()?.toLowerCase();
     
     try {
+      let data: any = null;
+      
       if (ext === 'geojson' || ext === 'json') {
         const text = await file.text();
-        const data = JSON.parse(text);
-        onFileLoad(data, file.name);
-        setFileName(file.name);
+        data = JSON.parse(text);
       } else if (ext === 'kml') {
         const text = await file.text();
-        // Parse KML to GeoJSON using simple conversion
         const parser = new DOMParser();
         const kml = parser.parseFromString(text, 'text/xml');
         const placemarks = kml.querySelectorAll('Placemark');
@@ -64,13 +80,28 @@ export function FileUploadZone({ onFileLoad, isLayerVisible, onToggleLayer }: Fi
           }
         });
         
-        const geojson = { type: 'FeatureCollection', features };
-        onFileLoad(geojson, file.name);
-        setFileName(file.name);
+        data = { type: 'FeatureCollection', features };
       } else if (ext === 'zip' || ext === 'kmz') {
         setError('Format ZIP/KMZ membutuhkan library tambahan. Gunakan GeoJSON atau KML.');
+        setIsLoading(false);
+        return;
       } else {
         setError(`Format .${ext} tidak didukung. Gunakan GeoJSON atau KML.`);
+        setIsLoading(false);
+        return;
+      }
+
+      if (data) {
+        const newLayer: UploadedLayer = {
+          id: `layer-${Date.now()}`,
+          fileName: file.name,
+          format: getFileFormat(file.name),
+          data,
+          visible: true
+        };
+        
+        setLayers(prev => [...prev, newLayer]);
+        onFileLoad(data, file.name);
       }
     } catch (err) {
       setError('Gagal memproses file. Pastikan format file benar.');
@@ -88,19 +119,51 @@ export function FileUploadZone({ onFileLoad, isLayerVisible, onToggleLayer }: Fi
     if (file) {
       processFile(file);
     }
-  }, [onFileLoad]);
+  }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       processFile(file);
     }
+    e.target.value = '';
   };
 
-  const handleClear = () => {
-    setFileName(null);
-    setError(null);
-    onFileLoad(null, '');
+  const handleDeleteLayer = (layerId: string) => {
+    setLayers(prev => prev.filter(l => l.id !== layerId));
+    // If no layers left, clear the map data
+    const remainingLayers = layers.filter(l => l.id !== layerId);
+    if (remainingLayers.length === 0) {
+      onFileLoad(null, '');
+    } else {
+      // Merge remaining visible layers
+      const visibleLayers = remainingLayers.filter(l => l.visible);
+      if (visibleLayers.length > 0) {
+        const mergedFeatures = visibleLayers.flatMap(l => l.data?.features || []);
+        onFileLoad({ type: 'FeatureCollection', features: mergedFeatures }, 'merged');
+      } else {
+        onFileLoad(null, '');
+      }
+    }
+  };
+
+  const handleToggleLayerVisibility = (layerId: string) => {
+    setLayers(prev => {
+      const updated = prev.map(l => 
+        l.id === layerId ? { ...l, visible: !l.visible } : l
+      );
+      
+      // Update map with visible layers
+      const visibleLayers = updated.filter(l => l.visible);
+      if (visibleLayers.length > 0) {
+        const mergedFeatures = visibleLayers.flatMap(l => l.data?.features || []);
+        onFileLoad({ type: 'FeatureCollection', features: mergedFeatures }, 'merged');
+      } else {
+        onFileLoad(null, '');
+      }
+      
+      return updated;
+    });
   };
 
   return (
@@ -133,7 +196,6 @@ export function FileUploadZone({ onFileLoad, isLayerVisible, onToggleLayer }: Fi
             ? 'border-primary bg-primary/10' 
             : 'border-border hover:border-primary/50 hover:bg-muted/30'
           }
-          ${fileName ? 'bg-primary/5' : ''}
         `}
       >
         <input
@@ -148,17 +210,6 @@ export function FileUploadZone({ onFileLoad, isLayerVisible, onToggleLayer }: Fi
             <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="text-xs text-muted-foreground mt-1">Memproses...</p>
           </div>
-        ) : fileName ? (
-          <div className="flex items-center justify-center gap-2 py-1">
-            <Check className="w-4 h-4 text-green-500" />
-            <span className="text-xs font-medium text-foreground truncate max-w-[150px]">{fileName}</span>
-            <button
-              onClick={(e) => { e.stopPropagation(); handleClear(); }}
-              className="p-0.5 hover:bg-muted rounded"
-            >
-              <X className="w-3 h-3 text-muted-foreground" />
-            </button>
-          </div>
         ) : (
           <div className="py-2">
             <FileUp className="w-5 h-5 text-muted-foreground mx-auto mb-1" />
@@ -171,6 +222,48 @@ export function FileUploadZone({ onFileLoad, isLayerVisible, onToggleLayer }: Fi
           </div>
         )}
       </div>
+
+      {/* Uploaded layers list */}
+      {layers.length > 0 && (
+        <div className="space-y-1">
+          {layers.map(layer => (
+            <div 
+              key={layer.id}
+              className="flex items-center gap-2 px-2 py-1.5 bg-muted/50 rounded-md text-xs"
+            >
+              {/* Format badge */}
+              <span className="px-1.5 py-0.5 bg-primary/20 text-primary rounded text-[10px] font-medium min-w-[45px] text-center">
+                {layer.format}
+              </span>
+              
+              {/* File name */}
+              <span className="flex-1 truncate text-foreground/80 text-[10px]">
+                {layer.fileName}
+              </span>
+              
+              {/* Delete button */}
+              <button
+                onClick={() => handleDeleteLayer(layer.id)}
+                className="p-1 hover:bg-destructive/20 rounded transition-colors"
+                title="Hapus layer"
+              >
+                <Trash2 className="w-3 h-3 text-destructive" />
+              </button>
+              
+              {/* Toggle visibility */}
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={layer.visible}
+                  onChange={() => handleToggleLayerVisibility(layer.id)}
+                  className="sr-only peer"
+                />
+                <div className="w-6 h-3 bg-muted-foreground/30 rounded-full peer peer-checked:bg-primary transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-background after:rounded-full after:h-2 after:w-2 after:transition-all peer-checked:after:translate-x-3" />
+              </label>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Error message */}
       {error && (

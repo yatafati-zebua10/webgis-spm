@@ -317,7 +317,7 @@ export function Sidebar({
 
           {/* Tools Tab */}
           {activeTab === 'tools' && (
-            <div className="p-3 space-y-3 animate-fade-in">
+            <div className="p-3 space-y-3 animate-fade-in flex-1">
               {/* Measurement Tool */}
               <MeasurementTool
                 mode={measureMode}
