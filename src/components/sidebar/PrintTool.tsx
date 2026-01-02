@@ -215,71 +215,67 @@ export function PrintTool({ mapContainerId }: PrintToolProps) {
         </div>
       </div>
 
-      {/* Paper Size (PDF only) */}
-      {format === 'pdf' && (
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Ukuran Kertas</label>
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              onClick={() => setPaperSize('a4')}
-              className={`
-                p-2 rounded-lg border-2 transition-all text-xs font-medium
-                ${paperSize === 'a4' 
-                  ? 'border-primary bg-primary/10 text-primary' 
-                  : 'border-border hover:border-primary/50'
-                }
-              `}
-            >
-              A4
-            </button>
-            <button
-              onClick={() => setPaperSize('a3')}
-              className={`
-                p-2 rounded-lg border-2 transition-all text-xs font-medium
-                ${paperSize === 'a3' 
-                  ? 'border-primary bg-primary/10 text-primary' 
-                  : 'border-border hover:border-primary/50'
-                }
-              `}
-            >
-              A3
-            </button>
-          </div>
+      {/* Paper Size */}
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Ukuran Kertas</label>
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            onClick={() => setPaperSize('a4')}
+            className={`
+              p-2 rounded-lg border-2 transition-all text-xs font-medium
+              ${paperSize === 'a4' 
+                ? 'border-primary bg-primary/10 text-primary' 
+                : 'border-border hover:border-primary/50'
+              }
+            `}
+          >
+            A4
+          </button>
+          <button
+            onClick={() => setPaperSize('a3')}
+            className={`
+              p-2 rounded-lg border-2 transition-all text-xs font-medium
+              ${paperSize === 'a3' 
+                ? 'border-primary bg-primary/10 text-primary' 
+                : 'border-border hover:border-primary/50'
+              }
+            `}
+          >
+            A3
+          </button>
         </div>
-      )}
+      </div>
 
-      {/* Orientation Selection (PDF only) */}
-      {format === 'pdf' && (
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Orientasi</label>
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              onClick={() => setLayout('landscape')}
-              className={`
-                p-2 rounded-lg border-2 transition-all text-xs font-medium
-                ${layout === 'landscape' 
-                  ? 'border-primary bg-primary/10 text-primary' 
-                  : 'border-border hover:border-primary/50'
-                }
-              `}
-            >
-              Landscape
-            </button>
-            <button
-              onClick={() => setLayout('portrait')}
-              className={`
-                p-2 rounded-lg border-2 transition-all text-xs font-medium
-                ${layout === 'portrait' 
-                  ? 'border-primary bg-primary/10 text-primary' 
-                  : 'border-border hover:border-primary/50'
-                }
-              `}
-            >
-              Portrait
-            </button>
-          </div>
+      {/* Orientation Selection */}
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Orientasi</label>
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            onClick={() => setLayout('landscape')}
+            className={`
+              p-2 rounded-lg border-2 transition-all text-xs font-medium
+              ${layout === 'landscape' 
+                ? 'border-primary bg-primary/10 text-primary' 
+                : 'border-border hover:border-primary/50'
+              }
+            `}
+          >
+            Landscape
+          </button>
+          <button
+            onClick={() => setLayout('portrait')}
+            className={`
+              p-2 rounded-lg border-2 transition-all text-xs font-medium
+              ${layout === 'portrait' 
+                ? 'border-primary bg-primary/10 text-primary' 
+                : 'border-border hover:border-primary/50'
+              }
+            `}
+          >
+            Portrait
+          </button>
         </div>
-      )}
+      </div>
 
       {/* Export Button */}
       <button

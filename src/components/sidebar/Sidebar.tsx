@@ -6,6 +6,7 @@ import { PolygonStyleControl } from './PolygonStyleControl';
 import { MeasurementTool } from './MeasurementTool';
 import { PrintTool } from './PrintTool';
 import { FileUploadZone } from './FileUploadZone';
+import { DatabaseUpdateTool } from './DatabaseUpdateTool';
 import type { BasemapType, PolygonStyle, MeasureMode } from '@/types/map-ui';
 import { Search, Map, List, Settings, Satellite, MapPin, Globe, Layers, X } from 'lucide-react';
 
@@ -31,6 +32,7 @@ interface SidebarProps {
   uploadedLayerVisible: boolean;
   onUploadedLayerVisibleChange: (visible: boolean) => void;
   onFileUpload: (data: any, fileName: string) => void;
+  onZoomToLayer?: (bounds: [[number, number], [number, number]]) => void;
 }
 
 type TabType = 'map' | 'list' | 'tools';
@@ -70,7 +72,8 @@ export function Sidebar({
   onPolygonLayerVisibleChange,
   uploadedLayerVisible,
   onUploadedLayerVisibleChange,
-  onFileUpload
+  onFileUpload,
+  onZoomToLayer
 }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<TabType>('list');
   const [searchQuery, setSearchQuery] = useState('');
@@ -232,6 +235,7 @@ export function Sidebar({
                 onFileLoad={onFileUpload}
                 isLayerVisible={uploadedLayerVisible}
                 onToggleLayer={onUploadedLayerVisibleChange}
+                onZoomToLayer={onZoomToLayer}
               />
 
               {/* Navigation Tips */}
@@ -328,6 +332,9 @@ export function Sidebar({
 
               {/* Print Tool */}
               <PrintTool mapContainerId="map-container" />
+
+              {/* Database Update Tool */}
+              <DatabaseUpdateTool />
             </div>
           )}
         </div>

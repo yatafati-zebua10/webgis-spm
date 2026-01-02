@@ -29,6 +29,12 @@ const Index = () => {
   const [measureMode, setMeasureMode] = useState<MeasureMode>('none');
   const [measureResult, setMeasureResult] = useState<string | null>(null);
 
+  // Click coordinate state
+  const [clickCoordinate, setClickCoordinate] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Zoom to bounds for uploaded layers
+  const [zoomToBounds, setZoomToBounds] = useState<[[number, number], [number, number]] | null>(null);
+
   const handleFeatureSelect = useCallback((feature: LandFeature) => {
     // CRITICAL BUG FIX: Always get the best feature with complete data
     const bestFeature = findBestFeature(feature.properties.IDTANAH, feature.properties.KODEBD);
@@ -69,6 +75,16 @@ const Index = () => {
     if (fileData) {
       setUploadedLayerVisible(true);
     }
+  }, []);
+
+  const handleClickCoordinate = useCallback((coord: { lat: number; lng: number } | null) => {
+    setClickCoordinate(coord);
+  }, []);
+
+  const handleZoomToLayer = useCallback((bounds: [[number, number], [number, number]]) => {
+    setZoomToBounds(bounds);
+    // Reset after a short delay
+    setTimeout(() => setZoomToBounds(null), 100);
   }, []);
 
   if (loading) {
@@ -112,7 +128,16 @@ const Index = () => {
           polygonLayerVisible={polygonLayerVisible}
           uploadedData={uploadedData}
           uploadedLayerVisible={uploadedLayerVisible}
+          onClickCoordinate={handleClickCoordinate}
+          zoomToBounds={zoomToBounds}
         />
+        
+        {/* Coordinate display */}
+        {clickCoordinate && (
+          <div className="absolute top-4 right-16 z-[1000] bg-card/95 backdrop-blur-sm text-foreground px-3 py-1.5 rounded-lg shadow-lg text-xs font-mono border border-border">
+            {clickCoordinate.lat.toFixed(6)}, {clickCoordinate.lng.toFixed(6)}
+          </div>
+        )}
       </main>
 
       {/* Sidebar - Floating on desktop, bottom sheet on mobile */}
@@ -138,6 +163,7 @@ const Index = () => {
         uploadedLayerVisible={uploadedLayerVisible}
         onUploadedLayerVisibleChange={setUploadedLayerVisible}
         onFileUpload={handleFileUpload}
+        onZoomToLayer={handleZoomToLayer}
       />
 
       {/* Mobile Toggle - Always visible when sidebar closed */}

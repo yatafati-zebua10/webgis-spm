@@ -25,6 +25,8 @@ interface MapViewProps {
   polygonLayerVisible: boolean;
   uploadedData: any;
   uploadedLayerVisible: boolean;
+  onClickCoordinate?: (coord: { lat: number; lng: number } | null) => void;
+  zoomToBounds?: [[number, number], [number, number]] | null;
 }
 
 const BASEMAP_URLS: Record<BasemapType, { url: string; attribution: string; maxZoom?: number }> = {
@@ -60,7 +62,9 @@ export function MapView({
   onMeasureClear,
   polygonLayerVisible,
   uploadedData,
-  uploadedLayerVisible
+  uploadedLayerVisible,
+  onClickCoordinate,
+  zoomToBounds
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
@@ -69,6 +73,7 @@ export function MapView({
   const highlightLayer = useRef<L.GeoJSON | null>(null);
   const basemapLayer = useRef<L.TileLayer | null>(null);
   const userMarker = useRef<L.Marker | null>(null);
+  const clickMarker = useRef<L.Marker | null>(null);
   const labelsLayer = useRef<L.LayerGroup | null>(null);
   
   // Measurement refs
@@ -221,6 +226,38 @@ export function MapView({
     map.current.fitBounds([[bbox[1], bbox[0]], [bbox[3], bbox[2]]], { padding: [50, 50], maxZoom: 17 });
   }, [selectedFeature, data]);
 
+  // Click to show coordinate marker
+  useEffect(() => {
+    if (!map.current) return;
+
+    const handleCoordinateClick = (e: L.LeafletMouseEvent) => {
+      // Only show coordinate marker when NOT in measure mode
+      if (measureMode !== 'none') return;
+      
+      const { lat, lng } = e.latlng;
+      
+      // Update or create click marker
+      if (clickMarker.current) {
+        clickMarker.current.setLatLng([lat, lng]);
+      } else {
+        clickMarker.current = L.marker([lat, lng], {
+          icon: L.icon({
+            iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+            iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+          })
+        }).addTo(map.current!);
+      }
+      
+      onClickCoordinate?.({ lat, lng });
+    };
+
+    map.current.on('click', handleCoordinateClick);
+    return () => { map.current?.off('click', handleCoordinateClick); };
+  }, [measureMode, onClickCoordinate]);
+
   // Measurement
   useEffect(() => {
     if (!map.current) return;
@@ -267,6 +304,12 @@ export function MapView({
 
     return () => { map.current?.off('click', handleMapClick); };
   }, [measureMode, onMeasureResult]);
+
+  // Zoom to bounds
+  useEffect(() => {
+    if (!map.current || !zoomToBounds) return;
+    map.current.fitBounds(zoomToBounds, { padding: [50, 50], maxZoom: 17 });
+  }, [zoomToBounds]);
 
   useEffect(() => {
     (window as any).__clearMeasurements = () => {
