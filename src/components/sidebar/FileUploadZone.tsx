@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import { Upload, FileUp, X, Trash2, AlertCircle } from 'lucide-react';
+import { Upload, FileUp, X, Trash2, AlertCircle, ZoomIn } from 'lucide-react';
+import * as turf from '@turf/turf';
 
 interface UploadedLayer {
   id: string;
@@ -13,9 +14,10 @@ interface FileUploadZoneProps {
   onFileLoad: (data: any, fileName: string) => void;
   isLayerVisible: boolean;
   onToggleLayer: (visible: boolean) => void;
+  onZoomToLayer?: (bounds: [[number, number], [number, number]]) => void;
 }
 
-export function FileUploadZone({ onFileLoad, isLayerVisible, onToggleLayer }: FileUploadZoneProps) {
+export function FileUploadZone({ onFileLoad, isLayerVisible, onToggleLayer, onZoomToLayer }: FileUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -147,6 +149,16 @@ export function FileUploadZone({ onFileLoad, isLayerVisible, onToggleLayer }: Fi
     }
   };
 
+  const handleZoomToLayer = (layer: UploadedLayer) => {
+    if (!layer.data || !onZoomToLayer) return;
+    try {
+      const bbox = turf.bbox(layer.data);
+      onZoomToLayer([[bbox[1], bbox[0]], [bbox[3], bbox[2]]]);
+    } catch (e) {
+      console.error('Could not calculate bounds:', e);
+    }
+  };
+
   const handleToggleLayerVisibility = (layerId: string) => {
     setLayers(prev => {
       const updated = prev.map(l => 
@@ -240,6 +252,15 @@ export function FileUploadZone({ onFileLoad, isLayerVisible, onToggleLayer }: Fi
               <span className="flex-1 truncate text-foreground/80 text-[10px]">
                 {layer.fileName}
               </span>
+              
+              {/* Zoom to button */}
+              <button
+                onClick={() => handleZoomToLayer(layer)}
+                className="p-1 hover:bg-primary/20 rounded transition-colors"
+                title="Zoom ke layer"
+              >
+                <ZoomIn className="w-3 h-3 text-primary" />
+              </button>
               
               {/* Delete button */}
               <button
