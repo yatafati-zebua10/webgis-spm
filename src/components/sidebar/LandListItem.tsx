@@ -28,6 +28,11 @@ export function LandListItem({ feature, onClick }: LandListItemProps) {
           </p>
           <p className="font-medium text-foreground mt-1 truncate">
             {p.NAMAMIL || 'Pemilik tidak diketahui'}
+            {p.NAMAEKS && (
+              <span className="text-muted-foreground text-[10px] ml-1">
+                (Eks. {p.NAMAEKS})
+              </span>
+            )}
           </p>
           <p className="text-xs text-muted-foreground mt-1 truncate">
             {address || 'Alamat tidak tersedia'}

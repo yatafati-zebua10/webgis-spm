@@ -6,6 +6,7 @@ import { jsPDF } from 'jspdf';
 type ExportFormat = 'pdf' | 'jpg' | 'png';
 type LayoutType = 'landscape' | 'portrait';
 type PaperSize = 'a4' | 'a3';
+type ExportMode = 'layout' | 'maponly';
 
 interface PrintToolProps {
   mapContainerId: string;
@@ -15,6 +16,7 @@ export function PrintTool({ mapContainerId }: PrintToolProps) {
   const [format, setFormat] = useState<ExportFormat>('pdf');
   const [layout, setLayout] = useState<LayoutType>('landscape');
   const [paperSize, setPaperSize] = useState<PaperSize>('a4');
+  const [exportMode, setExportMode] = useState<ExportMode>('layout');
   const [title, setTitle] = useState('Peta Aset Properti');
   const [isExporting, setIsExporting] = useState(false);
 
@@ -25,12 +27,11 @@ export function PrintTool({ mapContainerId }: PrintToolProps) {
     setIsExporting(true);
 
     try {
-      // Capture the map
       const canvas = await html2canvas(mapElement, {
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        scale: 2, // Higher quality
+        scale: 2,
       });
 
       const timestamp = new Date().toLocaleString('id-ID');
@@ -44,70 +45,88 @@ export function PrintTool({ mapContainerId }: PrintToolProps) {
 
         const pageWidth = pdf.internal.pageSize.getWidth();
         const pageHeight = pdf.internal.pageSize.getHeight();
-        const margin = 10;
+        const margin = exportMode === 'layout' ? 10 : 0;
 
-        // Header
-        pdf.setFontSize(paperSize === 'a3' ? 20 : 16);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text(title, margin, margin + 8);
+        if (exportMode === 'layout') {
+          // Header
+          pdf.setFontSize(paperSize === 'a3' ? 20 : 16);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(title, margin, margin + 8);
 
-        pdf.setFontSize(paperSize === 'a3' ? 12 : 10);
-        pdf.setFont('helvetica', 'normal');
-        pdf.text(`Dicetak: ${timestamp}`, margin, margin + 14);
+          pdf.setFontSize(paperSize === 'a3' ? 12 : 10);
+          pdf.setFont('helvetica', 'normal');
+          pdf.text(`Dicetak: ${timestamp}`, margin, margin + 14);
 
-        // Map image
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        const imgWidth = pageWidth - margin * 2;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        const maxImgHeight = pageHeight - margin * 2 - 25;
-        const finalHeight = Math.min(imgHeight, maxImgHeight);
-        const finalWidth = (finalHeight / imgHeight) * imgWidth;
+          // Map image
+          const imgData = canvas.toDataURL('image/jpeg', 0.95);
+          const imgWidth = pageWidth - margin * 2;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          const maxImgHeight = pageHeight - margin * 2 - 25;
+          const finalHeight = Math.min(imgHeight, maxImgHeight);
+          const finalWidth = (finalHeight / imgHeight) * imgWidth;
 
-        pdf.addImage(imgData, 'JPEG', margin, margin + 20, finalWidth, finalHeight);
+          pdf.addImage(imgData, 'JPEG', margin, margin + 20, finalWidth, finalHeight);
 
-        // Footer
-        pdf.setFontSize(paperSize === 'a3' ? 10 : 8);
-        pdf.text('PT. Suparma, Tbk. - WebGIS Aset Properti', margin, pageHeight - margin);
+          // Footer
+          pdf.setFontSize(paperSize === 'a3' ? 10 : 8);
+          pdf.text('PT. Suparma, Tbk. - WebGIS Aset Properti', margin, pageHeight - margin);
+        } else {
+          // Map only - full page
+          const imgData = canvas.toDataURL('image/jpeg', 0.95);
+          const imgWidth = pageWidth;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          const finalHeight = Math.min(imgHeight, pageHeight);
+          const finalWidth = (finalHeight / imgHeight) * imgWidth;
+          const xOffset = (pageWidth - finalWidth) / 2;
+          const yOffset = (pageHeight - finalHeight) / 2;
+
+          pdf.addImage(imgData, 'JPEG', xOffset, yOffset, finalWidth, finalHeight);
+        }
 
         pdf.save(`${title.replace(/\s+/g, '_')}_${Date.now()}.pdf`);
       } else {
         // Image export (JPG or PNG)
-        const exportCanvas = document.createElement('canvas');
-        const ctx = exportCanvas.getContext('2d')!;
-        
-        const headerHeight = 60;
-        const footerHeight = 30;
-        exportCanvas.width = canvas.width;
-        exportCanvas.height = canvas.height + headerHeight + footerHeight;
+        if (exportMode === 'layout') {
+          const exportCanvas = document.createElement('canvas');
+          const ctx = exportCanvas.getContext('2d')!;
+          
+          const headerHeight = 60;
+          const footerHeight = 30;
+          exportCanvas.width = canvas.width;
+          exportCanvas.height = canvas.height + headerHeight + footerHeight;
 
-        // White background
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
 
-        // Header
-        ctx.fillStyle = '#0f2d5a';
-        ctx.fillRect(0, 0, exportCanvas.width, headerHeight);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 24px Arial';
-        ctx.fillText(title, 20, 35);
-        ctx.font = '14px Arial';
-        ctx.fillText(`Dicetak: ${timestamp}`, 20, 52);
+          ctx.fillStyle = '#0f2d5a';
+          ctx.fillRect(0, 0, exportCanvas.width, headerHeight);
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 24px Arial';
+          ctx.fillText(title, 20, 35);
+          ctx.font = '14px Arial';
+          ctx.fillText(`Dicetak: ${timestamp}`, 20, 52);
 
-        // Map
-        ctx.drawImage(canvas, 0, headerHeight);
+          ctx.drawImage(canvas, 0, headerHeight);
 
-        // Footer
-        ctx.fillStyle = '#f0f0f0';
-        ctx.fillRect(0, exportCanvas.height - footerHeight, exportCanvas.width, footerHeight);
-        ctx.fillStyle = '#666666';
-        ctx.font = '12px Arial';
-        ctx.fillText('PT. Suparma, Tbk. - WebGIS Aset Properti', 20, exportCanvas.height - 12);
+          ctx.fillStyle = '#f0f0f0';
+          ctx.fillRect(0, exportCanvas.height - footerHeight, exportCanvas.width, footerHeight);
+          ctx.fillStyle = '#666666';
+          ctx.font = '12px Arial';
+          ctx.fillText('PT. Suparma, Tbk. - WebGIS Aset Properti', 20, exportCanvas.height - 12);
 
-        const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
-        const link = document.createElement('a');
-        link.download = `${title.replace(/\s+/g, '_')}_${Date.now()}.${format}`;
-        link.href = exportCanvas.toDataURL(mimeType, 0.95);
-        link.click();
+          const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
+          const link = document.createElement('a');
+          link.download = `${title.replace(/\s+/g, '_')}_${Date.now()}.${format}`;
+          link.href = exportCanvas.toDataURL(mimeType, 0.95);
+          link.click();
+        } else {
+          // Map only
+          const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
+          const link = document.createElement('a');
+          link.download = `${title.replace(/\s+/g, '_')}_${Date.now()}.${format}`;
+          link.href = canvas.toDataURL(mimeType, 0.95);
+          link.click();
+        }
       }
     } catch (error) {
       console.error('Export failed:', error);
@@ -165,6 +184,37 @@ export function PrintTool({ mapContainerId }: PrintToolProps) {
         </div>
       </div>
 
+      {/* Export Mode Selection */}
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Mode Ekspor</label>
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            onClick={() => setExportMode('layout')}
+            className={`
+              p-2 rounded-lg border-2 transition-all text-xs font-medium
+              ${exportMode === 'layout' 
+                ? 'border-primary bg-primary/10 text-primary' 
+                : 'border-border hover:border-primary/50'
+              }
+            `}
+          >
+            Dengan Layout
+          </button>
+          <button
+            onClick={() => setExportMode('maponly')}
+            className={`
+              p-2 rounded-lg border-2 transition-all text-xs font-medium
+              ${exportMode === 'maponly' 
+                ? 'border-primary bg-primary/10 text-primary' 
+                : 'border-border hover:border-primary/50'
+              }
+            `}
+          >
+            Peta Saja
+          </button>
+        </div>
+      </div>
+
       {/* Paper Size (PDF only) */}
       {format === 'pdf' && (
         <div className="space-y-1">
@@ -198,10 +248,10 @@ export function PrintTool({ mapContainerId }: PrintToolProps) {
         </div>
       )}
 
-      {/* Layout Selection (PDF only) */}
+      {/* Orientation Selection (PDF only) */}
       {format === 'pdf' && (
         <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Layout</label>
+          <label className="text-xs font-medium text-muted-foreground">Orientasi</label>
           <div className="grid grid-cols-2 gap-1.5">
             <button
               onClick={() => setLayout('landscape')}
